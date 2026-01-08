@@ -694,12 +694,24 @@ function getCalendarIcon(condition) {
 let mediaRecorder;
 let audioChunks = [];
 let recordedAudioBase64 = null;
+let currentUserAudio = null;
 
 // Voice Panel visibility is now handled by standalone section
 window.toggleVoicePanel = function() {
     const card = document.getElementById('voice-management-card');
     if (card) {
         card.scrollIntoView({ behavior: 'smooth' });
+    }
+};
+
+// Stop any currently playing audio
+window.stopVoiceUser = function() {
+    if (currentUserAudio) {
+        currentUserAudio.pause();
+        currentUserAudio.currentTime = 0;
+        currentUserAudio = null;
+        const btnPlayVoice = document.getElementById('btn-play-voice');
+        if (btnPlayVoice) btnPlayVoice.innerHTML = '<span>▶️</span> Play Sound';
     }
 };
 
@@ -873,17 +885,23 @@ if (btnPlayVoice && voiceSelect) {
         console.log("User: Playing audio, data length:", audioData.length);
         console.log("User: Audio format starts with:", audioData.substring(0, 60));
         
+        // Stop any currently playing audio
+        if (currentUserAudio) {
+            currentUserAudio.pause();
+        }
+        
         try {
-            const audio = new Audio(audioData);
-            audio.play().catch(e => {
+            currentUserAudio = new Audio(audioData);
+            currentUserAudio.play().catch(e => {
                 console.error('Playback error:', e);
                 alert('Audio playback failed. The file might be corrupted or too large.');
             });
             
             const originalText = btnPlayVoice.innerHTML;
             btnPlayVoice.textContent = '🔊 Playing...';
-            audio.onended = () => {
+            currentUserAudio.onended = () => {
                 btnPlayVoice.innerHTML = originalText;
+                currentUserAudio = null;
             };
         } catch (e) {
             alert('Could not play audio.');

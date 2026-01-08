@@ -621,13 +621,18 @@ function updateUIForRole() {
   if (listSection) listSection.style.display = "block";
   if (themeSection) themeSection.style.display = "block";
 
-  // User restrictions
+  // User restrictions (hide admin-only sections)
   if (currentUserRole === "user") {
     if (analytics) analytics.style.display = "none";
     if (settings) settings.style.display = "none";
     if (iThink) iThink.style.display = "none";
     if (targetDateSection) targetDateSection.style.display = "none";
     if (themeSection) themeSection.style.display = "none";
+    
+    // Hide Voice Management for non-admin users
+    const voiceSection = document.getElementById("section-voice-management");
+    if (voiceSection) voiceSection.style.display = "none";
+    
     // Keep 'Add', 'List', 'Header Image', and 'API' visible (with logic-based restrictions)
   }
 }
@@ -1992,6 +1997,7 @@ async function loadVoiceManager() {
         </div>
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
           <button onclick="playVoiceAdmin(${cacheIndex})" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 8px 12px; font-size: 0.8rem; border-radius: 8px;">▶️ Play</button>
+          <button onclick="stopVoiceAdmin()" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); padding: 8px 12px; font-size: 0.8rem; border-radius: 8px; color: #ef4444;">⏹️ Stop</button>
           <button onclick="toggleVoiceActive(${globalIndex})" style="background: ${isActive ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)'}; color: ${isActive ? '#f59e0b' : '#10b981'}; border: 1px solid ${isActive ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)'}; padding: 8px 12px; font-size: 0.8rem; border-radius: 8px;">
             ${isActive ? '⏸️ Deactivate' : '✅ Activate'}
           </button>
@@ -2008,8 +2014,16 @@ async function loadVoiceManager() {
 }
 
 // Global play function for admin (uses cached audio data)
+let currentAdminAudio = null;
+
 window.playVoiceAdmin = function(cacheIndex) {
   try {
+    // Stop any currently playing audio
+    if (currentAdminAudio) {
+      currentAdminAudio.pause();
+      currentAdminAudio = null;
+    }
+    
     const audioData = window._admin_voice_cache?.[cacheIndex];
     if (!audioData) {
       alert("Audio data not found. Please refresh the page.");
@@ -2017,16 +2031,27 @@ window.playVoiceAdmin = function(cacheIndex) {
     }
     
     console.log("Admin: Playing audio, data length:", audioData.length);
-    console.log("Admin: Audio format starts with:", audioData.substring(0, 50));
     
-    const audio = new Audio(audioData);
-    audio.play().catch(e => {
+    currentAdminAudio = new Audio(audioData);
+    currentAdminAudio.play().catch(e => {
       console.error("Admin Playback error:", e);
       alert("Could not play this audio. The format might not be supported.");
     });
+    
+    currentAdminAudio.onended = () => {
+      currentAdminAudio = null;
+    };
   } catch (e) {
     console.error("Audio initialization error:", e);
     alert("Audio initialization error");
+  }
+};
+
+window.stopVoiceAdmin = function() {
+  if (currentAdminAudio) {
+    currentAdminAudio.pause();
+    currentAdminAudio.currentTime = 0;
+    currentAdminAudio = null;
   }
 };
 
