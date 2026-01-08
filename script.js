@@ -749,7 +749,16 @@ function initVoiceEvents() {
         btnRecord.onclick = async () => {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
+                
+                // Detect supported MIME type for better cross-device compatibility (iOS support)
+                let options = {};
+                if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                    options = { mimeType: 'audio/mp4' };
+                } else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                    options = { mimeType: 'audio/webm;codecs=opus' };
+                }
+                
+                mediaRecorder = new MediaRecorder(stream, options);
                 audioChunks = [];
 
                 mediaRecorder.ondataavailable = (event) => {
@@ -757,7 +766,7 @@ function initVoiceEvents() {
                 };
 
                 mediaRecorder.onstop = async () => {
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
                     recordedAudioBase64 = await blobToBase64(audioBlob);
                     voiceStatus.textContent = '✅ Recording captured!';
                     uploadForm.style.display = 'flex';
@@ -858,8 +867,8 @@ if (btnPlayVoice && voiceSelect) {
         const voice = voices[index];
         if (!voice) return;
 
-        // Extract base64 (everything after the tag)
-        const audioData = voice.notes.replace(/{{v:.*?}}/, '');
+        // Strip ALL metadata tags recursively using global regex
+        const audioData = voice.notes.replace(/{{.*?}}/g, '');
         
         try {
             const audio = new Audio(audioData);
@@ -877,8 +886,8 @@ if (btnPlayVoice && voiceSelect) {
             alert('Could not play audio.');
         }
     };
-    }
     loadSavedVoices();
+}
 }
 
 // Helper: Blob to Base64

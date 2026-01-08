@@ -1968,7 +1968,7 @@ async function loadVoiceManager() {
       const match = v.notes?.match(/{{v:(.*?)}}/);
       const name = match ? match[1] : `Sound ${index + 1}`;
       const isActive = !v.notes?.includes("{{active:false}}");
-      const base64 = v.notes?.replace(/{{v:.*?}}/, "").replace(/{{active:.*?}}/, "");
+      const base64 = v.notes?.replace(/{{.*?}}/g, "");
 
       const card = document.createElement("div");
       card.className = "admin-prediction-card";
@@ -2001,12 +2001,17 @@ async function loadVoiceManager() {
 }
 
 // Global play function for admin
-window.playVoiceAdmin = function(base64) {
+window.playVoiceAdmin = function(data) {
   try {
-    const audio = new Audio(base64);
-    audio.play().catch(e => alert("Could not play this audio. It might be corrupted or too large."));
+    // Strip tags just in case they were passed through
+    const audioData = data.replace(/{{.*?}}/g, "");
+    const audio = new Audio(audioData);
+    audio.play().catch(e => {
+      console.error("Admin Playback error:", e);
+      alert("Could not play this audio. The format might not be supported on this browser.");
+    });
   } catch (e) {
-    alert("Audio error");
+    alert("Audio initialization error");
   }
 };
 
