@@ -870,6 +870,9 @@ if (btnPlayVoice && voiceSelect) {
         // Strip ALL metadata tags recursively using global regex
         const audioData = voice.notes.replace(/{{.*?}}/g, '');
         
+        console.log("User: Playing audio, data length:", audioData.length);
+        console.log("User: Audio format starts with:", audioData.substring(0, 60));
+        
         try {
             const audio = new Audio(audioData);
             audio.play().catch(e => {
