@@ -1,336 +1,221 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Photographer Gallery — Auto View</title>
-  <style>
-    :root{
-      --bg:#0f0f10;
-      --card-bg: rgba(255,255,255,0.03);
-      --dot-active: #fff;
-      --dot-inactive: #666;
-      --gap: 18px;
-    }
-    html,body{
-      height:100%;
-      margin:0;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-      background: linear-gradient(180deg,var(--bg), #050506 120%);
-      color:#fff;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0c0c14">
+    <meta name="color-scheme" content="dark light">
+    <title>الارصاد المهدوية</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="icon" type="image/jpeg" href="favicon.jpg">
+    <link rel="manifest" href="manifest.json">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        :root {
+            --bg-color: #0c0c14;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary-color: #3b82f6;
+            --primary-hover: #2563eb;
+            --accent-color: #06b6d4;
+            --glass-bg: rgba(15, 23, 42, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        }
 
-    /* outer stage centered vertically + horizontally */
-    .stage{
-      min-height:100vh;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:36px;
-      box-sizing:border-box;
-    }
+        body {
+            background-color: var(--bg-color) !important;
+            background: radial-gradient(circle at 50% 50%, #171725 0%, #0c0c14 100%) !important;
+            color: var(--text-color);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
 
-    /* gallery card */
-    .gallery-card{
-      width:min(1100px, 94vw);
-      background:var(--card-bg);
-      border-radius:10px;
-      padding:18px;
-      box-sizing:border-box;
-      box-shadow: 0 6px 30px rgba(0,0,0,0.6);
-      display:flex;
-      flex-direction:column;
-      gap:12px;
-      align-items:center;
-    }
+        .background-blobs {
+            display: none !important;
+        }
 
-    header{
-      width:100%;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-    }
-    header h1{
-      margin:0;
-      font-size:18px;
-      letter-spacing:0.3px;
-    }
-    header p{ margin:0; opacity:0.75; font-size:13px }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
 
-    /* viewport keeps gallery centered horizontally and hides overflow */
-    .viewport{
-      width:100%;
-      height:420px;
-      max-height:60vh;
-      overflow:hidden;
-      position:relative;
-      border-radius:8px;
-      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.1));
-      display:flex;
-      align-items:center;
-      justify-content:center;
-    }
+        .header-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 32px;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: var(--shadow);
+        }
 
-    /* horizontal track */
-    .track{
-      display:flex;
-      gap:var(--gap);
-      align-items:center;
-      transition:transform 600ms cubic-bezier(.22,.9,.3,1);
-      will-change:transform;
-      padding:18px;
-      box-sizing:border-box;
-      /* for touch scrolling fallback */
-      touch-action: pan-y;
-    }
+        .section-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 32px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+        }
 
-    .slide{
-      flex: 0 0 auto; /* keep natural width */
-      width: min(700px, 80vw);
-      height: calc(100% - 36px);
-      background:#111;
-      border-radius:6px;
-      overflow:hidden;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.6);
-    }
-    .slide img{
-      width:100%;
-      height:100%;
-      object-fit:cover;
-      display:block;
-      user-select:none;
-      -webkit-user-drag:none;
-      pointer-events:none;
-    }
-
-    /* controls */
-    .controls{
-      display:flex;
-      gap:8px;
-      align-items:center;
-    }
-    .btn{
-      background:transparent;
-      border:1px solid rgba(255,255,255,0.08);
-      color:#fff;
-      padding:8px 12px;
-      border-radius:6px;
-      cursor:pointer;
-      font-size:14px;
-      backdrop-filter: blur(4px);
-    }
-    .btn:active{ transform:translateY(1px) }
-
-    /* pagination dots */
-    .dots{
-      display:flex;
-      gap:8px;
-      align-items:center;
-    }
-    .dot{
-      width:10px;
-      height:10px;
-      border-radius:50%;
-      background:var(--dot-inactive);
-      cursor:pointer;
-      opacity:0.95;
-    }
-    .dot.active{ background:var(--dot-active); transform:scale(1.12) }
-
-    /* small screens adjustments */
-    @media (max-width:640px){
-      .viewport{ height:60vh }
-      .slide{ width:90vw }
-    }
-  </style>
+        /* Overriding some style.css defaults for the new layout */
+        .main-container {
+            background: transparent !important;
+            border: none !important;
+            backdrop-filter: none !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            max-width: none !important;
+        }
+    </style>
 </head>
 <body>
-
-  <div class="stage">
-    <div class="gallery-card" aria-roledescription="carousel">
-      <header>
-        <div>
-          <h1>I am a photographer — gallery</h1>
-          <p>Auto view mode — photos from <code>img/</code></p>
+    <!-- Alert Ticker Container -->
+    <div id="alert-ticker-container" style="display: none;">
+        <div class="alert-ticker">
+            <span id="alert-ticker-text"></span>
         </div>
-        <div class="controls" aria-hidden="false">
-          <button class="btn" id="prevBtn" title="Previous (←)">Prev</button>
-          <button class="btn" id="playPauseBtn" title="Pause/Play">Pause</button>
-          <button class="btn" id="nextBtn" title="Next (→)">Next</button>
-        </div>
-      </header>
-
-      <div class="viewport" id="viewport" tabindex="0">
-        <div class="track" id="track">
-          <!-- Add your images here. The example below assumes files like img/photo1.jpg, img/photo2.jpg ... -->
-          <!-- Replace, remove or add <figure> blocks as needed for your actual filenames. -->
-          <figure class="slide"><img src="img/photo1.jpg" alt="Photo 1" loading="lazy"></figure>
-          <figure class="slide"><img src="img/photo2.jpg" alt="Photo 2" loading="lazy"></figure>
-          <figure class="slide"><img src="img/photo3.jpg" alt="Photo 3" loading="lazy"></figure>
-          <figure class="slide"><img src="img/photo4.jpg" alt="Photo 4" loading="lazy"></figure>
-          <figure class="slide"><img src="img/photo5.jpg" alt="Photo 5" loading="lazy"></figure>
-          <!-- If you want to add more: <figure class="slide"><img src="img/yourfilename.jpg" alt="..."></figure> -->
-        </div>
-      </div>
-
-      <div style="width:100%; display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-        <small style="opacity:0.75">Tip: hover to pause · swipe on touch · keyboard ← →</small>
-        <div class="dots" id="dots" aria-hidden="false"></div>
-      </div>
     </div>
-  </div>
+    
+    <div class="container">
+        <header class="header-panel">
+            <a href="index.html"><img src="img/Mahdawi_Weather.png" alt="Mahdawi Weather Logo" width="280"></a>
+            <p class="subtitle">Predict the weather, this month.</p>
+        </header>
 
-  <script>
-    (function () {
-      const track = document.getElementById('track');
-      const slides = Array.from(track.querySelectorAll('.slide'));
-      const prevBtn = document.getElementById('prevBtn');
-      const nextBtn = document.getElementById('nextBtn');
-      const playPauseBtn = document.getElementById('playPauseBtn');
-      const dotsWrap = document.getElementById('dots');
-      const viewport = document.getElementById('viewport');
+        <section class="section-panel date-display">
+            <p>Target Date:</p>
+            <h2 id="target-date-display">...</h2>
+            <p id="date-mode-badge" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; opacity: 0;">
+                <span id="date-mode-icon">📍</span> <span id="date-mode-text">Live Date</span>
+            </p>
+        </section>
 
-      if (!slides.length) {
-        track.innerHTML = '<div style="padding:30px;color:#ddd">No images found. Add images into <code>img/</code> and add <code>&lt;figure class=\"slide\"&gt;...&lt;/figure&gt;</code> blocks.</div>';
-        return;
-      }
+        <section class="section-panel custom-section">
+            <h3 id="i-think-title">i think</h3>
+            <p id="i-think-text">...</p>
+        </section>
 
-      // create dots
-      slides.forEach((_, i) => {
-        const d = document.createElement('div'); d.className = 'dot'; d.dataset.index = i;
-        d.addEventListener('click', () => goTo(i));
-        dotsWrap.appendChild(d);
-      });
-      const dots = Array.from(dotsWrap.children);
+        <section class="section-panel predictions-list-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--text-muted); margin: 0; font-weight: 600;">Official Forecasts</h3>
+                <div class="view-toggle" style="display: flex; gap: 8px;">
+                    <button id="btn-list-view" class="toggle-btn active" onclick="switchView('list')">List</button>
+                    <button id="btn-grid-view" class="toggle-btn" onclick="switchView('grid')">Calendar</button>
+                </div>
+            </div>
+            
+            <div id="predictions-list" class="predictions-grid">
+                <!--Predictions will be added here dynamically -->
+                <p class="empty-state">No official forecasts yet.</p>
+            </div>
+            
+            <div id="predictions-calendar" class="calendar-grid" style="display: none;">
+                <!--Calendar will be added here dynamically -->
+            </div>
+        </section>
+        
+        <section class="section-panel voice-card-section" id="voice-management-card">
+            <div class="voice-card-header">
+                <h3><span>🎤</span> Voice Control & Library</h3>
+                <p>Record, upload, and share sounds with the community.</p>
+            </div>
 
-      let index = 0;
-      let autoTimer = null;
-      const AUTOPLAY_DELAY = 3000; // ms
+            <div class="voice-controls">
+                <div class="voice-actions-row">
+                    <button id="btn-record" class="action-btn record-btn"><span>🎤</span> Start Recording</button>
+                    <button id="btn-stop-record" class="action-btn stop-btn" style="display: none;"><span>⏹️</span> Stop & Preview</button>
+                    <button id="btn-upload-trigger" class="action-btn upload-btn"><span>📁</span> Upload Audio</button>
+                    <input type="file" id="voice-file-input" style="display: none;" accept=".mp3,.wav,.m4a,.ogg,audio/*">
+                </div>
+                
+                <div id="voice-status" class="voice-status-indicator" style="display: none;">Ready</div>
 
-      function updateUI() {
-        // compute center offset so the active slide is centered in viewport
-        const vpRect = viewport.getBoundingClientRect();
-        const slide = slides[index];
-        const slideRect = slide.getBoundingClientRect();
-        // current track translate to place the slide centered
-        const trackRect = track.getBoundingClientRect();
-        // compute center X of viewport minus center X of slide relative to track
-        const vpCenter = vpRect.left + vpRect.width / 2;
-        const slideCenter = slideRect.left + slideRect.width / 2;
-        const delta = vpCenter - slideCenter;
-        // current transform + delta
-        // simpler: compute desired translateX by summing slide offsets
-        let offsetLeft = 0;
-        for (let i = 0; i < index; i++) offsetLeft += slides[i].offsetWidth + parseInt(getComputedStyle(track).gap || 0);
-        const target = (vpRect.width - slides[index].offsetWidth) / 2 - offsetLeft;
-        track.style.transform = `translateX(${target}px)`;
-        dots.forEach((d, i) => d.classList.toggle('active', i === index));
-      }
+                <div id="voice-upload-form" class="voice-upload-overlay" style="display: none;">
+                    <div class="upload-form-content">
+                        <input type="text" id="voice-name" placeholder="Name this sound..." class="voice-input">
+                        <button id="btn-save-voice" class="action-btn save-btn">💾 Share to Global Library</button>
+                    </div>
+                </div>
 
-      function goTo(i) {
-        index = (i + slides.length) % slides.length;
-        updateUI();
-      }
-      function next() { goTo(index + 1); }
-      function prev() { goTo(index - 1); }
+                <div class="voice-divider"></div>
 
-      function play() {
-        stop();
-        autoTimer = setInterval(next, AUTOPLAY_DELAY);
-        playPauseBtn.textContent = 'Pause';
-        playPauseBtn.dataset.playing = 'true';
-      }
-      function stop() {
-        if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
-        playPauseBtn.textContent = 'Play';
-        playPauseBtn.dataset.playing = 'false';
-      }
-      function togglePlay() {
-        if (autoTimer) stop(); else play();
-      }
+                <div class="library-controls">
+                    <div class="select-wrapper">
+                        <select id="voice-select" class="voice-select">
+                            <option value="">Select a shared sound...</option>
+                        </select>
+                    </div>
+                    <button id="btn-play-voice" class="action-btn play-btn"><span>▶️</span> Play Sound</button>
+                </div>
+            </div>
+        </section>
 
-      // controls
-      prevBtn.addEventListener('click', () => { prev(); resetAutoplay(); });
-      nextBtn.addEventListener('click', () => { next(); resetAutoplay(); });
-      playPauseBtn.addEventListener('click', togglePlay);
+        <footer class="section-panel" style="text-align: center; display: flex; flex-direction: column; align-items: center; gap: 15px;">
+            <div style="display: flex; justify-content: center; gap: 20px; width: 100%;">
+                <a href="other.html" class="link-secondary">See what others are saying &rarr;</a>
+                <a href="admin.html" class="link-secondary" style="opacity: 0.5;">Admin Access &rarr;</a>
+            </div>
+            <p id="site-version" style="font-size: 0.65rem; color: var(--text-muted); opacity: 0.4; margin: 0;">v2.1 (Local-First)</p>
+        </footer>
+    </div>
 
-      // pause on hover/focus
-      viewport.addEventListener('mouseenter', () => { stop(); });
-      viewport.addEventListener('mouseleave', () => { play(); });
+    <!-- Gemini Chatbot UI -->
+    <div id="chatbot-button" onclick="toggleChatbot()">
+        <svg viewBox="0 0 24 24">
+            <path d="M12 2C6.477 2 2 6.477 2 12c0 1.821.487 3.53 1.338 5L2 22l5-1.338c1.47.851 3.179 1.338 5 1.338 5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18c-1.477 0-2.854-.396-4.04-1.083l-2.657.711.711-2.657A7.957 7.957 0 014 12c0-4.411 3.589-8 8-8s8 3.589 8 8-3.589 8-8 8z"/>
+        </svg>
+    </div>
 
-      // keyboard
-      window.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowLeft') { prev(); resetAutoplay(); }
-        if (e.key === 'ArrowRight') { next(); resetAutoplay(); }
-        if (e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); togglePlay(); }
-      });
+    <div id="chatbot-window">
+        <div class="chat-header">
+            <h3>
+                <span class="ai-icon">✨</span>
+                Mahdawi AI
+            </h3>
+            <button class="close-btn" onclick="toggleChatbot()">&times;</button>
+        </div>
+        <div id="chat-messages">
+            <div class="message ai">سلام, انا المساعد للارصاد المهدوية, اذا احتجت شي انا موجود😶</div>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Type your message..." onkeypress="if(event.key === 'Enter') sendChatMessage()">
+            <button id="send-chat" onclick="sendChatMessage()">
+                <svg viewBox="0 0 24 24">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
 
-      // touch swipe
-      (function addTouch() {
-        let startX = 0, dx = 0, touching = false;
-        viewport.addEventListener('touchstart', (ev) => {
-          touching = true; stop();
-          startX = ev.touches[0].clientX;
-        }, {passive:true});
-        viewport.addEventListener('touchmove', (ev) => {
-          if (!touching) return;
-          dx = ev.touches[0].clientX - startX;
-          track.style.transition = 'none';
-          track.style.transform = `translateX(${(parseFloat(track.style.transform.replace('translateX(', '') ) || 0) + dx}px)`;
-        }, {passive:true});
-        viewport.addEventListener('touchend', (ev) => {
-          touching = false; track.style.transition = '';
-          if (Math.abs(dx) > 40) {
-            if (dx < 0) next(); else prev();
-          } else {
-            updateUI();
-          }
-          dx = 0; play();
-        }, {passive:true});
-      })();
-
-      // adjust on resize
-      window.addEventListener('resize', () => {
-        updateUI();
-      });
-
-      // helper to restart autoplay after manual interaction
-      let interactionTimeout = null;
-      function resetAutoplay() {
-        stop();
-        if (interactionTimeout) clearTimeout(interactionTimeout);
-        interactionTimeout = setTimeout(() => play(), 5000); // restart auto after 5s
-      }
-
-      // initial setup: wait for images to load to compute sizes then position
-      function waitImagesThenInit() {
-        const imgs = Array.from(track.querySelectorAll('img'));
-        let loaded = 0;
-        if (!imgs.length) { updateUI(); play(); return; }
-        imgs.forEach(img => {
-          if (img.complete) { loaded++; }
-          else img.addEventListener('load', () => { loaded++; if (loaded === imgs.length) init(); });
-          img.addEventListener('error', () => { loaded++; if (loaded === imgs.length) init(); });
-        });
-        if (loaded === imgs.length) init();
-      }
-
-      function init() {
-        // ensure track has no leftover inline transform
-        track.style.transform = '';
-        // small timeout to let layout finalize
-        requestAnimationFrame(() => {
-          updateUI();
-          play();
-        });
-      }
-
-      waitImagesThenInit();
-    })();
-  </script>
+    <script type="module" src="config.js" defer></script>
+    <script src="analytics.js" defer></script>
+    <script src="script.js" defer></script>
+    <script src="chatbot.js" defer></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('SW Registered', reg))
+                    .catch(err => console.log('SW Error', err));
+            });
+        }
+    </script>
 </body>
 </html>
