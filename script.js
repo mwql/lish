@@ -425,7 +425,12 @@ async function initApp() {
     
     console.log("Mahdawi Weather: Initializing...");
     
-    // 1. Display "Today" on both pages immediately
+    // 1. Initialize Voice & Secondary Events (Crucial to do this before display)
+    if (typeof initVoiceEvents === 'function') {
+        initVoiceEvents();
+    }
+
+    // 2. Display "Today" on both pages immediately
     const inlineDateDisplay = document.getElementById('target-date-inline');
     const targetDateDisplay = document.getElementById('target-date-display');
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -636,16 +641,11 @@ function renderCalendarView(predictions) {
     const year = now.getFullYear();
     const month = now.getMonth();
     
-    // Days in current month
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    
-    // Get actual forecasts only
     const actualForecasts = predictions.filter(p => p.isActive !== false && !p.condition.startsWith('__'));
     
     for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        
-        // Find if this day has a forecast
         const dayForecast = actualForecasts.find(p => p.date === dateStr);
         
         const dayDiv = document.createElement('div');
@@ -656,9 +656,7 @@ function renderCalendarView(predictions) {
         dayDiv.innerHTML = `
             <div class="calendar-day-content">
                 <span class="day-number">${day}</span>
-                ${dayForecast ? `
-                    <span class="day-icon">${getCalendarIcon(dayForecast.condition)}</span>
-                ` : ''}
+                ${dayForecast ? `<span class="day-icon">${getCalendarIcon(dayForecast.condition)}</span>` : ''}
             </div>
         `;
         
@@ -666,46 +664,27 @@ function renderCalendarView(predictions) {
             dayDiv.title = `${dayForecast.condition} - ${dayForecast.temperature}°C`;
             dayDiv.onclick = () => {
                 switchView('list');
-                // Find and scroll to the prediction card if needed
                 const cards = document.querySelectorAll('.prediction-card');
                 for (let card of cards) {
-                    if (card.textContent.includes(dayForecast.condition) && card.textContent.includes(dayForecast.temperature)) {
+                    if (card.textContent.includes(dayForecast.condition)) {
                         card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        card.style.borderColor = 'var(--primary-color)';
-                        card.style.boxShadow = '0 0 20px rgba(59, 130, 246, 0.4)';
-                        setTimeout(() => {
-                           card.style.borderColor = '';
-                           card.style.boxShadow = '';
-                        }, 2000);
                         break;
                     }
                 }
             };
         }
-        
         calendar.appendChild(dayDiv);
     }
 }
 
-// Helper: Simple Icon Picker for Calendar
+// Helper: Icons for Calendar
 function getCalendarIcon(condition) {
     const c = condition.toLowerCase();
     if (c.includes('sun') || c.includes('clear')) return '☀️';
     if (c.includes('cloud')) return '☁️';
-    if (c.includes('rain') || c.includes('shower')) return '🌧️';
-    if (c.includes('storm') || c.includes('thunder')) return '⛈️';
-    if (c.includes('dust') || c.includes('sand')) return '🌪️';
-    if (c.includes('fog') || c.includes('mist')) return '🌫️';
-    if (c.includes('snow') || c.includes('ice')) return '❄️';
-    return '⛅'; // Default
-}
-
-// Start as early as possible
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    initApp();
-} else {
-    document.addEventListener('DOMContentLoaded', initApp);
-    window.addEventListener('load', initApp); // Fallback
+    if (c.includes('rain')) return '🌧️';
+    if (c.includes('storm')) return '⛈️';
+    return '⛅';
 }
 
 // =============================
@@ -754,6 +733,7 @@ async function loadSavedVoices() {
 
 // Initialize Voice Events
 function initVoiceEvents() {
+    console.log("Voice Initialization: START");
     const btnRecord = document.getElementById('btn-record');
     const btnStopRecord = document.getElementById('btn-stop-record');
     const voiceStatus = document.getElementById('voice-status');
@@ -897,9 +877,21 @@ if (btnPlayVoice && voiceSelect) {
             alert('Could not play audio.');
         }
     };
-}
+    }
+    loadSavedVoices();
 }
 
+// Helper: Blob to Base64
+function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
+// Helper: Post Voice to Supabase
 async function postVoiceAsset(name, base64) {
     let url = window.SB_URL;
     let key = window.SB_KEY;
@@ -935,18 +927,14 @@ async function postVoiceAsset(name, base64) {
     }
 }
 
-function blobToBase64(blob) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-    });
-}
+// =============================
+// MAIN INITIALIZATION TRIGGER
+// =============================
 
-// Call initVoiceEvents when app initializes
-const originalInitApp = initApp;
-initApp = async function() {
-    await originalInitApp();
-    initVoiceEvents();
-};
+// Start as early as possible
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    initApp();
+} else {
+    document.addEventListener('DOMContentLoaded', initApp);
+    window.addEventListener('load', initApp); // Fallback
+}
