@@ -185,9 +185,13 @@ function createNewsCardHtml(item, isAdmin = false) {
 
     let linkHtml = '';
     if (item.link_url) {
+        let url = item.link_url;
+        if (!/^https?:\/\//i.test(url)) {
+            url = 'https://' + url;
+        }
         linkHtml = `
             <div style="margin-top: 10px;">
-                <a href="${escapeHtml(item.link_url)}" target="_blank" class="news-link-btn">Read More &rarr;</a>
+                <a href="${escapeHtml(url)}" target="_blank" class="news-link-btn">Read More &rarr;</a>
             </div>
         `;
     }
@@ -369,7 +373,13 @@ async function handleAddNews(e) {
     const title = titleObj.value.trim();
     const content = contentObj.value.trim();
     // const author = authorObj ? authorObj.value.trim() : 'Admin'; // Old logic
-    const link_url = linkObj ? linkObj.value.trim() : '';
+    let link_url = linkObj ? linkObj.value.trim() : '';
+    
+    // Auto-fix link if it doesn't start with http/https
+    if (link_url && !/^https?:\/\//i.test(link_url)) {
+        link_url = 'https://' + link_url;
+    }
+
     const pin = pinObj.value.trim();
 
     if (!title || !content) {
