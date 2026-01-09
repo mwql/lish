@@ -27,6 +27,12 @@ function getSupabaseCredentials() {
     return { url, key };
 }
 
+// Global State
+let currentNewsList = [];
+let editingNewsId = null;
+
+// --- Data Fetching ---
+
 async function getNews() {
     const { url, key } = getSupabaseCredentials();
     
@@ -34,7 +40,8 @@ async function getNews() {
     if (!url || !key) {
         console.warn("News: Supabase not configured. Using local storage.");
         const stored = localStorage.getItem('mh_news_data');
-        return stored ? JSON.parse(stored) : [];
+        currentNewsList = stored ? JSON.parse(stored) : [];
+        return currentNewsList;
     }
 
     try {
@@ -48,7 +55,7 @@ async function getNews() {
 
         if (response.ok) {
             const data = await response.json();
-            return data.map(item => ({
+            currentNewsList = data.map(item => ({
                 id: item.id,
                 title: item.title,
                 content: item.content,
@@ -59,6 +66,7 @@ async function getNews() {
                 link_url: item.link_url,
                 publisher_role: item.publisher_role
             }));
+            return currentNewsList;
         } else {
             console.error("News: Failed to fetch", await response.text());
             throw new Error("Fetch failed");
@@ -66,22 +74,30 @@ async function getNews() {
     } catch (e) {
         console.error("News: Network error", e);
         const stored = localStorage.getItem('mh_news_data');
-        return stored ? JSON.parse(stored) : [];
+        currentNewsList = stored ? JSON.parse(stored) : [];
+        return currentNewsList;
     }
 }
 
-async function saveNews(newsItem) {
+async function saveNews(newsItem, isUpdate = false, id = null) {
     const { url, key } = getSupabaseCredentials();
 
     if (!url || !key) {
-        const current = JSON.parse(localStorage.getItem('mh_news_data') || '[]');
-        current.push(newsItem);
+        let current = JSON.parse(localStorage.getItem('mh_news_data') || '[]');
+        if (isUpdate && id) {
+            const index = current.findIndex(i => i.id === id);
+            if (index !== -1) current[index] = { ...current[index], ...newsItem, id: id };
+        } else {
+            current.push({ ...newsItem, id: Date.now() });
+        }
         localStorage.setItem('mh_news_data', JSON.stringify(current));
         return true;
     }
 
     try {
-        const requestUrl = `${url.replace(/\/$/, '')}/rest/v1/news`;
+        let requestUrl = `${url.replace(/\/$/, '')}/rest/v1/news`;
+        let method = 'POST';
+        
         const payload = {
             title: newsItem.title,
             content: newsItem.content,
@@ -93,8 +109,13 @@ async function saveNews(newsItem) {
             publisher_role: newsItem.publisher_role
         };
 
+        if (isUpdate && id) {
+            requestUrl += `?id=eq.${id}`;
+            method = 'PATCH';
+        }
+
         const response = await fetch(requestUrl, {
-            method: 'POST',
+            method: method,
             headers: {
                 'apikey': key,
                 'Authorization': `Bearer ${key}`,
@@ -117,8 +138,48 @@ async function saveNews(newsItem) {
     }
 }
 
-async function deleteNews(id) {
-    if (!confirm('Are you sure you want to delete this news item?')) return;
+// Security Helper
+async function verifyPinForAction(publisherRole, action) {
+    let requiredHash = window.ADMIN_PASSWORD_HASH;
+    let pinPrompt = "Enter ADMIN PIN to confirm:";
+    
+    // Logic: 
+    // If publisher is User -> Require User PIN ('11')
+    // If publisher is Admin -> Require Admin PIN ('2')
+    // (As requested by user)
+    
+    if (publisherRole === 'user') {
+        requiredHash = window.USER_PASSWORD_HASH;
+        pinPrompt = "Enter USER PIN to confirm:";
+    } else {
+        // Default to Admin
+        requiredHash = window.ADMIN_PASSWORD_HASH;
+        pinPrompt = "Enter ADMIN PIN to confirm:";
+    }
+
+    const pin = prompt(pinPrompt);
+    if (!pin) return false;
+
+    const hashedPin = await window.hashPassword(pin);
+    if (hashedPin === requiredHash) return true;
+    
+    // Fallback: Admin PIN should probably override User items too?
+    // But sticking to strict request: "if user... require 11"
+    
+    // Actually, let's allow Admin PIN to work for everything as a fallback?
+    // User request was specific about "require 11", but standard admin rights imply 2 works everywhere.
+    // I will stick to the requested logic for now to show strict compliance, 
+    // but maybe adding "OR Admin" is safer. 
+    // The request: "if the publisher is a user it requre the user pass'11'" -> implies ONLY 11?
+    // Let's implement strict request.
+    
+    alert("❌ Incorrect PIN.");
+    return false;
+}
+
+async function deleteNews(id, publisherRole) {
+    if (!await verifyPinForAction(publisherRole, 'delete')) return;
+    if (!confirm('Are you definitely sure?')) return;
 
     const { url, key } = getSupabaseCredentials();
     
@@ -151,6 +212,31 @@ async function deleteNews(id) {
     }
 }
 
+async function editNews(id, publisherRole) {
+    if (!await verifyPinForAction(publisherRole, 'edit')) return;
+
+    const item = currentNewsList.find(n => n.id.toString() === id.toString());
+    if (!item) {
+        alert("Error: Item not found.");
+        return;
+    }
+
+    // Populate Form
+    document.getElementById('news-title').value = item.title;
+    document.getElementById('news-content').value = item.content;
+    const linkObj = document.getElementById('news-link');
+    if (linkObj) linkObj.value = item.link_url || '';
+    
+    // Set Edit Mode
+    editingNewsId = id;
+    const btn = document.getElementById('btn-add-news');
+    btn.textContent = "Update News";
+    btn.classList.add('btn-warning'); // Visual cue (need CSS for this? btn-primary is fine, maybe change color manually)
+    
+    // Scroll to form
+    document.querySelector('.section').scrollIntoView({ behavior: 'smooth' });
+}
+
 function formatDate(dateString) {
     if (!dateString) return '';
     const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
@@ -162,6 +248,7 @@ function formatDate(dateString) {
 function createNewsCardHtml(item, isAdmin = false) {
     let mediaHtml = '';
     
+    // Media Logic (Shared)
     if (item.video_url) {
         mediaHtml += `
             <video class="news-video" 
@@ -186,9 +273,7 @@ function createNewsCardHtml(item, isAdmin = false) {
     let linkHtml = '';
     if (item.link_url) {
         let url = item.link_url;
-        if (!/^https?:\/\//i.test(url)) {
-            url = 'https://' + url;
-        }
+        if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
         linkHtml = `
             <div style="margin-top: 10px;">
                 <a href="${escapeHtml(url)}" target="_blank" class="news-link-btn">Read More &rarr;</a>
@@ -196,16 +281,22 @@ function createNewsCardHtml(item, isAdmin = false) {
         `;
     }
 
-    let deleteBtnHtml = '';
+    // Admin Actions
+    let adminActionsHtml = '';
     if (isAdmin) {
-        deleteBtnHtml = `<button class="btn-danger" onclick="deleteNews('${item.id}')" style="margin-left: auto;">Delete</button>`;
+        const role = item.publisher_role || 'admin';
+        adminActionsHtml = `
+            <div style="display:flex; gap:10px; margin-top:15px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px;">
+                <button class="btn-edit" style="flex:1;" onclick="editNews('${item.id}', '${role}')">✏️ Edit</button>
+                <button class="btn-danger" style="flex:1;" onclick="deleteNews('${item.id}', '${role}')">🗑️ Delete</button>
+            </div>
+        `;
     }
 
     return `
         <div class="news-header">
             <h3 class="news-title">${escapeHtml(item.title)}</h3>
             <span class="news-date">${formatDate(item.date)}</span>
-            ${isAdmin ? deleteBtnHtml : ''}
         </div>
         ${mediaHtml}
         <div class="news-content">${formatContent(item.content)}</div>
@@ -213,6 +304,7 @@ function createNewsCardHtml(item, isAdmin = false) {
         <div class="news-footer">
             <span class="news-author">By ${escapeHtml(item.author || 'Admin')}</span>
         </div>
+        ${adminActionsHtml}
     `;
 }
 
@@ -317,7 +409,8 @@ async function renderNewsAdmin() {
 
     newsItems.forEach(item => {
         const card = document.createElement('div');
-        card.className = 'news-card';
+        // Use standard glass card class
+        card.className = 'news-card'; 
         card.innerHTML = createNewsCardHtml(item, true);
         listContainer.appendChild(card);
     });
@@ -361,7 +454,6 @@ async function handleAddNews(e) {
     
     const titleObj = document.getElementById('news-title');
     const contentObj = document.getElementById('news-content');
-    // const authorObj = document.getElementById('news-author'); // Removed
     const imageInput = document.getElementById('news-image');
     const videoInput = document.getElementById('news-video');
     const linkObj = document.getElementById('news-link');
@@ -372,13 +464,10 @@ async function handleAddNews(e) {
 
     const title = titleObj.value.trim();
     const content = contentObj.value.trim();
-    // const author = authorObj ? authorObj.value.trim() : 'Admin'; // Old logic
     let link_url = linkObj ? linkObj.value.trim() : '';
     
-    // Auto-fix link if it doesn't start with http/https
-    if (link_url && !/^https?:\/\//i.test(link_url)) {
-        link_url = 'https://' + link_url;
-    }
+    // Auto-fix link
+    if (link_url && !/^https?:\/\//i.test(link_url)) link_url = 'https://' + link_url;
 
     const pin = pinObj.value.trim();
 
@@ -386,6 +475,15 @@ async function handleAddNews(e) {
         alert('Please fill in title and content.');
         return;
     }
+    
+    // If Editing, we need PIN for the CURRENT user who is editing, 
+    // OR do we re-verify? We already verified to click "Edit".
+    // But we need to define the Role of the UPDATED item.
+    // If Admin edits simple User post, does it become Admin post? Or stay User?
+    // Let's rely on the PIN entered NOW to determine validity.
+    // Wait, editing verification happened at button click.
+    // But saving requires re-verification of "Who are you?" to determine Role/Author.
+    // Let's allow the PIN entered to dictate the NEW Author/Role.
     
     if (!pin) {
         alert('Please enter a Publish PIN.');
@@ -409,11 +507,12 @@ async function handleAddNews(e) {
         return;
     }
 
-    // LIMIT CHECK FOR USER
-    if (role === 'user') {
+    // LIMIT CHECK FOR USER (Skip if updating existing item? Or strictly enforce?)
+    // If updating, count doesn't change (+0).
+    // If inserting, count +1.
+    if (role === 'user' && !editingNewsId) {
         try {
-            const existingNews = await getNews();
-            const userPosts = existingNews.filter(n => n.publisher_role === 'user').length;
+            const userPosts = currentNewsList.filter(n => n.publisher_role === 'user').length;
             if (userPosts >= 5) {
                 alert(`User limit reached! You have already published ${userPosts}/5 items.`);
                 return;
@@ -423,12 +522,26 @@ async function handleAddNews(e) {
 
     // Disable button
     const originalText = btn.textContent;
-    btn.textContent = "Publishing...";
+    btn.textContent = editingNewsId ? "Updating..." : "Publishing...";
     btn.disabled = true;
     
     // Handle Files
-    let image_url = '';
+    let image_url = ''; 
     let video_url = '';
+    
+    // For update, if no new file selected, we keep old?
+    // fetch/saveNews handles this? No, we need to pass old URL if not changing.
+    // But input fields are empty.
+    // If editing, retrieve current URLs
+    let currentItem = null;
+    if (editingNewsId) {
+        currentItem = currentNewsList.find(i => i.id.toString() === editingNewsId.toString());
+        if (currentItem) {
+            image_url = currentItem.image_url;
+            video_url = currentItem.video_url;
+        }
+    }
+
     const imgFile = imageInput && imageInput.files ? imageInput.files[0] : null;
     const vidFile = videoInput && videoInput.files ? videoInput.files[0] : null;
 
@@ -449,38 +562,57 @@ async function handleAddNews(e) {
     const newItem = {
         title,
         content,
-        author: authorName, // Auto-set
-        date: new Date().toISOString(),
+        author: authorName,
+        date: new Date().toISOString(), // Update date on edit? Or keep original? Usually keep original on edit, but user didn't specify. I'll update date to show latest activity or keep? Let's NEW date for now or keep old if editing?
+        // Let's use NEW date for update to bump it up, OR keep original. 
+        // Admin panel usually keeps creation date. I'll use new Date if insert, else keep old.
+        // Actually, let's just use new Date to denote "Last Updated".
         image_url,
         video_url,
         link_url,
         publisher_role: role
     };
+    
+    // Correct Date logic
+    if (editingNewsId && currentItem) {
+        newItem.date = currentItem.date; // Keep original date
+    }
 
-    const success = await saveNews(newItem);
+    const success = await saveNews(newItem, !!editingNewsId, editingNewsId);
 
     if (success) {
+        // Reset Form
         titleObj.value = '';
         contentObj.value = '';
-        // if(authorObj) authorObj.value = ''; // Removed
         if(imageInput) imageInput.value = ''; 
         if(videoInput) videoInput.value = '';
         if(linkObj) linkObj.value = '';
-        pinObj.value = ''; // Clear PIN
+        pinObj.value = '';
+        
+        // Reset Edit Mode
+        editingNewsId = null;
+        btn.textContent = "Publish News";
+        btn.classList.remove('btn-warning');
         
         await renderNewsAdmin();
-        alert('News item published!');
+        alert(editingNewsId ? 'News updated!' : 'News published!');
+    } else {
+        btn.textContent = originalText;
+        btn.disabled = false;
     }
-
-    btn.textContent = originalText;
-    btn.disabled = false;
 }
+
+window.editNews = editNews;
 
 // --- Utilities ---
 
 function escapeHtml(text) {
     if (!text) return '';
-    return text.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    return text.toString().replace(/&/g, "&amp;")
+               .replace(/</g, "&lt;")
+               .replace(/>/g, "&gt;")
+               .replace(/"/g, "&quot;")
+               .replace(/'/g, "&#039;");
 }
 
 function formatContent(text) {

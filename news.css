@@ -343,9 +343,50 @@ button.btn-primary:hover {
         margin-left: 0 !important; /* Override inline style */
         margin-top: 8px;
     }
+
+    /* Admin Card Mobile */
+    .admin-news-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .admin-news-info {
+        margin-right: 0;
+        width: 100%;
+        margin-bottom: 8px;
+    }
+
+    .admin-news-actions {
+        width: 100%;
+        display: flex;
+        gap: 10px;
+    }
+
+    .admin-news-actions button {
+        flex: 1;
+        text-align: center;
+        margin: 0 !important; /* Reset margins */
+    }
 }
 
 /* PIN Input Styling */
+.btn-edit {
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--primary-color);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.btn-edit:hover {
+    background: var(--primary-color);
+    color: white;
+}
 #publish-pin {
     text-align: center;
     letter-spacing: 5px;
