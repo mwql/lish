@@ -33,10 +33,6 @@
                     <input type="text" id="news-title" placeholder="Enter article title" required>
                 </div>
                 <div class="form-group">
-                    <label for="news-author">Author (Optional)</label>
-                    <input type="text" id="news-author" placeholder="Your name">
-                </div>
-                <div class="form-group">
                     <label for="news-image">News Image</label>
                     <input type="file" id="news-image" accept="image/*">
                     <p style="font-size:0.8rem; color: var(--text-muted); margin-top:5px;">Select an image from your device.</p>
@@ -55,7 +51,7 @@
                     <textarea id="news-content" placeholder="Enter article content..." required></textarea>
                 <div class="form-group">
                     <label for="publish-pin">Publish PIN</label>
-                    <input type="password" id="publish-pin" placeholder="Enter PIN '2' (Admin) or '11' (User)" required>
+                    <input type="password" id="publish-pin" placeholder="Enter Publish PIN" autocomplete="new-password" required>
                 </div>
                 <button type="button" id="btn-add-news" class="btn-primary">Publish News</button>
             </form>
@@ -63,7 +59,10 @@
 
         <!-- Existing News Section -->
         <div class="section">
-            <h2>📋 Existing News</h2>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2>📋 Existing News</h2>
+                <button id="btn-clear-all" class="btn-danger" style="font-size:0.9rem;">🗑️ Clear All News</button>
+            </div>
             <div id="news-list-admin" class="news-grid">
                 <!-- Admin news list will be loaded here -->
             </div>
@@ -85,6 +84,7 @@
             window.location.href = 'admin.html';
         }
     </script>
+    <script type="module" src="config.js"></script>
     <script src="news.js"></script>
 </body>
 </html>

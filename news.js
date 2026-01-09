@@ -357,7 +357,7 @@ async function handleAddNews(e) {
     
     const titleObj = document.getElementById('news-title');
     const contentObj = document.getElementById('news-content');
-    const authorObj = document.getElementById('news-author');
+    // const authorObj = document.getElementById('news-author'); // Removed
     const imageInput = document.getElementById('news-image');
     const videoInput = document.getElementById('news-video');
     const linkObj = document.getElementById('news-link');
@@ -368,7 +368,7 @@ async function handleAddNews(e) {
 
     const title = titleObj.value.trim();
     const content = contentObj.value.trim();
-    const author = authorObj ? authorObj.value.trim() : 'Admin';
+    // const author = authorObj ? authorObj.value.trim() : 'Admin'; // Old logic
     const link_url = linkObj ? linkObj.value.trim() : '';
     const pin = pinObj.value.trim();
 
@@ -384,12 +384,16 @@ async function handleAddNews(e) {
 
     // AUTH CHECK
     let role = '';
+    let authorName = '';
+
     const hashedPin = await window.hashPassword(pin);
 
     if (hashedPin === window.ADMIN_PASSWORD_HASH) {
         role = 'admin';
+        authorName = 'Admin';
     } else if (hashedPin === window.USER_PASSWORD_HASH) {
         role = 'user';
+        authorName = 'User';
     } else {
         alert("Incorrect PIN. Please try again.");
         return;
@@ -435,7 +439,7 @@ async function handleAddNews(e) {
     const newItem = {
         title,
         content,
-        author,
+        author: authorName, // Auto-set
         date: new Date().toISOString(),
         image_url,
         video_url,
@@ -448,7 +452,7 @@ async function handleAddNews(e) {
     if (success) {
         titleObj.value = '';
         contentObj.value = '';
-        if(authorObj) authorObj.value = '';
+        // if(authorObj) authorObj.value = ''; // Removed
         if(imageInput) imageInput.value = ''; 
         if(videoInput) videoInput.value = '';
         if(linkObj) linkObj.value = '';
@@ -474,6 +478,46 @@ function formatContent(text) {
     return escapeHtml(text).replace(/\n/g, '<br>');
 }
 
+// --- Clear All Logic ---
+
+async function handleClearAllNews() {
+    if (!confirm("⚠️ WARNING: This will delete ALL news items. This action cannot be undone.\n\nAre you sure?")) return;
+
+    const pin = prompt("Please enter the ADMIN PIN to confirm deletion:");
+    if (!pin) return;
+
+    const hashedPin = await window.hashPassword(pin);
+    if (hashedPin !== window.ADMIN_PASSWORD_HASH) {
+        alert("❌ Access Denied: Incorrect PIN. Only Admin can clear all news.");
+        return;
+    }
+
+    const { url, key } = getSupabaseCredentials();
+    if (!url || !key) return;
+
+    // Delete all rows
+    try {
+        const requestUrl = `${url.replace(/\/$/, '')}/rest/v1/news?id=neq.0`; // Delete where id != 0 (all)
+        const response = await fetch(requestUrl, {
+            method: 'DELETE',
+            headers: {
+                'apikey': key,
+                'Authorization': `Bearer ${key}`
+            }
+        });
+
+        if (response.ok) {
+            alert("✅ All news items have been deleted.");
+            renderNewsAdmin();
+        } else {
+            alert("Error clearing news: " + await response.text());
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Network Error");
+    }
+}
+
 // --- Initialization ---
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -489,6 +533,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const addBtn = document.getElementById('btn-add-news');
         if (addBtn) {
             addBtn.addEventListener('click', handleAddNews);
+        }
+        
+        const clearBtn = document.getElementById('btn-clear-all');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', handleClearAllNews);
         }
     }
 });

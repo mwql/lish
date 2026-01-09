@@ -326,6 +326,26 @@ button.btn-primary:hover {
     }
 }
 
+/* PIN Input Styling */
+#publish-pin {
+    text-align: center;
+    letter-spacing: 5px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    border: 2px solid var(--border-color);
+    background: rgba(0, 0, 0, 0.3);
+    color: white;
+    width: 200px; /* Shorter width for PIN */
+    margin: 0 auto; /* Center it */
+    display: block;
+}
+
+#publish-pin:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+    outline: none;
+}
+
 /* Custom File Input Styling */
 input[type="file"] {
     padding: 10px;
